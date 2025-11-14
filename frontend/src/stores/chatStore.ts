@@ -4,11 +4,21 @@ import { socketService } from '@/lib/socket';
 import type { Room, Message } from '@/types';
 import toast from 'react-hot-toast';
 
+interface Conversation {
+  userId: string;
+  username: string;
+  avatar?: string;
+  lastMessage?: Message;
+  unreadCount?: number;
+}
+
 interface ChatState {
   rooms: Room[];
   currentRoom: Room | null;
+  currentPrivateChat: { userId: string; username: string; avatar?: string } | null;
   messages: Record<string, Message[]>;
   privateMessages: Record<string, Message[]>;
+  conversations: Conversation[];
   typingUsers: Record<string, string[]>;
   isLoading: boolean;
 
@@ -16,8 +26,10 @@ interface ChatState {
   joinRoom: (roomId: string) => Promise<void>;
   leaveRoom: (roomId: string) => Promise<void>;
   setCurrentRoom: (room: Room | null) => void;
+  startPrivateChat: (userId: string, username: string, avatar?: string) => void;
   loadRoomMessages: (roomId: string) => Promise<void>;
   loadPrivateMessages: (userId: string) => Promise<void>;
+  loadConversations: () => Promise<void>;
   addMessage: (message: Message) => void;
   deleteMessage: (messageId: string) => Promise<void>;
   setTyping: (roomId: string, userId: string, isTyping: boolean) => void;
@@ -26,8 +38,10 @@ interface ChatState {
 export const useChatStore = create<ChatState>((set, get) => ({
   rooms: [],
   currentRoom: null,
+  currentPrivateChat: null,
   messages: {},
   privateMessages: {},
+  conversations: [],
   typingUsers: {},
   isLoading: false,
 
@@ -45,11 +59,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   joinRoom: async (roomId) => {
     try {
+      const room = get().rooms.find(r => r.id === roomId);
+
+      // Si c'est le salon actuel, on recharge juste les messages
+      if (get().currentRoom?.id === roomId) {
+        await get().loadRoomMessages(roomId);
+        return;
+      }
+
+      // Sinon, on rejoint le salon
       await roomAPI.joinRoom(roomId);
       socketService.joinRoom(roomId);
       await get().loadRoomMessages(roomId);
 
-      const room = get().rooms.find(r => r.id === roomId);
       if (room) {
         set({ currentRoom: room });
       }
@@ -69,7 +91,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   setCurrentRoom: (room) => {
-    set({ currentRoom: room });
+    set({ currentRoom: room, currentPrivateChat: null });
+  },
+
+  startPrivateChat: async (userId, username, avatar) => {
+    set({ currentPrivateChat: { userId, username, avatar }, currentRoom: null });
+    await get().loadPrivateMessages(userId);
+  },
+
+  loadConversations: async () => {
+    try {
+      const response = await messageAPI.getConversations();
+      set({ conversations: response.data });
+    } catch (error: any) {
+      toast.error('Erreur lors du chargement des conversations');
+    }
   },
 
   loadRoomMessages: async (roomId) => {

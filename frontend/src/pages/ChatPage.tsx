@@ -6,11 +6,12 @@ import { socketService } from '@/lib/socket';
 // Components
 import Sidebar from '@/components/chat/Sidebar';
 import ChatArea from '@/components/chat/ChatArea';
+import PrivateChat from '@/components/chat/PrivateChat';
 import RightPanel from '@/components/chat/RightPanel';
 import MobileNav from '@/components/chat/MobileNav';
 
 export default function ChatPage() {
-  const { loadRooms } = useChatStore();
+  const { loadRooms, currentPrivateChat } = useChatStore();
   const { loadFriends, loadFriendRequests, updateFriendStatus } = useFriendStore();
   const [showRightPanel, setShowRightPanel] = useState(false);
   const [activeView, setActiveView] = useState<'rooms' | 'friends' | 'profile'>('rooms');
@@ -70,7 +71,11 @@ export default function ChatPage() {
       {/* Desktop Layout */}
       <div className="hidden md:flex flex-1 overflow-hidden">
         <Sidebar />
-        <ChatArea onToggleRightPanel={() => setShowRightPanel(!showRightPanel)} />
+        {currentPrivateChat ? (
+          <PrivateChat onToggleRightPanel={() => setShowRightPanel(!showRightPanel)} />
+        ) : (
+          <ChatArea onToggleRightPanel={() => setShowRightPanel(!showRightPanel)} />
+        )}
         {showRightPanel && <RightPanel onClose={() => setShowRightPanel(false)} />}
       </div>
 

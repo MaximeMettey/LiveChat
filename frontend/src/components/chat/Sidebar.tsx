@@ -2,19 +2,29 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useChatStore } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
-import { Hash, Users, Settings, Shield, LogOut } from 'lucide-react';
+import { Hash, Users, Settings, Shield, LogOut, MessageCircle } from 'lucide-react';
 
 interface SidebarProps {
   mobile?: boolean;
 }
 
 export default function Sidebar({ mobile = false }: SidebarProps) {
-  const { rooms, currentRoom, joinRoom, loadRooms } = useChatStore();
+  const {
+    rooms,
+    currentRoom,
+    currentPrivateChat,
+    conversations,
+    joinRoom,
+    loadRooms,
+    loadConversations,
+    startPrivateChat
+  } = useChatStore();
   const { user, logout } = useAuthStore();
 
   useEffect(() => {
     loadRooms();
-  }, [loadRooms]);
+    loadConversations();
+  }, [loadRooms, loadConversations]);
 
   const isModerator = user?.role === 'MODERATOR' || user?.role === 'ADMIN';
 
@@ -56,8 +66,62 @@ export default function Sidebar({ mobile = false }: SidebarProps) {
         </div>
       </div>
 
-      {/* Salons */}
+      {/* Conversations et Salons */}
       <div className="flex-1 overflow-y-auto p-2">
+        {/* Conversations privées */}
+        {conversations.length > 0 && (
+          <>
+            <div className="mb-2 px-2 flex items-center justify-between">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase">
+                Messages privés
+              </h2>
+              <MessageCircle className="w-4 h-4 text-gray-400" />
+            </div>
+
+            <div className="space-y-1 mb-4">
+              {conversations.map((conv) => (
+                <button
+                  key={conv.userId}
+                  onClick={() => startPrivateChat(conv.userId, conv.username, conv.avatar)}
+                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                    currentPrivateChat?.userId === conv.userId
+                      ? 'bg-primary-50 text-primary-700'
+                      : 'hover:bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    {conv.avatar ? (
+                      <img
+                        src={conv.avatar}
+                        alt={conv.username}
+                        className="w-8 h-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-primary-600 text-sm font-semibold">
+                        {conv.username.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <p className="font-medium truncate">{conv.username}</p>
+                    {conv.lastMessage && (
+                      <p className="text-xs text-gray-500 truncate">
+                        {conv.lastMessage.content}
+                      </p>
+                    )}
+                  </div>
+                  {conv.unreadCount && conv.unreadCount > 0 && (
+                    <span className="bg-primary-600 text-white text-xs px-2 py-1 rounded-full">
+                      {conv.unreadCount}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Salons publics */}
         <div className="mb-2 px-2 flex items-center justify-between">
           <h2 className="text-xs font-semibold text-gray-500 uppercase">
             Salons publics
