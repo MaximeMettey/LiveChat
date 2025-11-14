@@ -10,32 +10,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  USER
-  MODERATOR
-  ADMIN
-}
-
-enum UserStatus {
-  ONLINE
-  AWAY
-  OFFLINE
-}
-
-enum ReportStatus {
-  PENDING
-  REVIEWED
-  RESOLVED
-  DISMISSED
-}
-
-enum ReportReason {
-  SPAM
-  HARASSMENT
-  INAPPROPRIATE_CONTENT
-  IMPERSONATION
-  OTHER
-}
+// Note: SQLite ne supporte pas les enums natifs, on utilise String
+// Valeurs possibles pour role: "USER", "MODERATOR", "ADMIN"
+// Valeurs possibles pour status: "ONLINE", "AWAY", "OFFLINE"
+// Valeurs possibles pour ReportStatus: "PENDING", "REVIEWED", "RESOLVED", "DISMISSED"
+// Valeurs possibles pour ReportReason: "SPAM", "HARASSMENT", "INAPPROPRIATE_CONTENT", "IMPERSONATION", "OTHER"
 
 model User {
   id            String      @id @default(uuid())
@@ -46,8 +25,8 @@ model User {
   department    String      // Code département (ex: "75", "69")
   avatar        String?
   bio           String?
-  role          UserRole    @default(USER)
-  status        UserStatus  @default(OFFLINE)
+  role          String      @default("USER")
+  status        String      @default("OFFLINE")
   isAnonymous   Boolean     @default(true)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -156,9 +135,9 @@ model Report {
   id          String       @id @default(uuid())
   reporterId  String
   reportedId  String
-  reason      ReportReason
+  reason      String
   description String?
-  status      ReportStatus @default(PENDING)
+  status      String       @default("PENDING")
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
