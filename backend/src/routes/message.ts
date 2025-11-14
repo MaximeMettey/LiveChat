@@ -80,32 +80,52 @@ router.get('/private/conversations', async (req: AuthRequest, res) => {
     });
     const blockedIds = blocks.map(b => b.blockedId);
 
-    // Trouver toutes les conversations (derniers messages)
-    const conversations = await prisma.$queryRaw`
-      SELECT DISTINCT ON (
-        CASE
-          WHEN "senderId" = ${userId} THEN "receiverId"
-          ELSE "senderId"
-        END
-      )
-        "id",
-        "content",
-        "senderId",
-        "receiverId",
-        "createdAt",
-        CASE
-          WHEN "senderId" = ${userId} THEN "receiverId"
-          ELSE "senderId"
-        END as "otherUserId"
-      FROM "Message"
-      WHERE
-        "isPrivate" = true
-        AND "deletedAt" IS NULL
-        AND ("senderId" = ${userId} OR "receiverId" = ${userId})
-        AND "senderId" NOT IN (${blockedIds.length > 0 ? blockedIds.join(',') : "''"})
-        AND "receiverId" NOT IN (${blockedIds.length > 0 ? blockedIds.join(',') : "''"})
-      ORDER BY "otherUserId", "createdAt" DESC
-    ` as any[];
+    // Récupérer tous les messages privés de l'utilisateur
+    const messages = await prisma.message.findMany({
+      where: {
+        isPrivate: true,
+        deletedAt: null,
+        OR: [
+          { senderId: userId },
+          { receiverId: userId }
+        ],
+        AND: [
+          { senderId: { notIn: blockedIds } },
+          { receiverId: { notIn: blockedIds } }
+        ]
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+            status: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Grouper par conversation (autre utilisateur) et garder seulement le dernier message
+    const conversationsMap = new Map();
+
+    messages.forEach((message) => {
+      const otherUserId = message.senderId === userId ? message.receiverId! : message.senderId;
+
+      if (!conversationsMap.has(otherUserId)) {
+        conversationsMap.set(otherUserId, {
+          id: message.id,
+          content: message.content,
+          senderId: message.senderId,
+          receiverId: message.receiverId,
+          createdAt: message.createdAt,
+          otherUserId: otherUserId
+        });
+      }
+    });
+
+    const conversations = Array.from(conversationsMap.values());
 
     // Enrichir avec les infos utilisateur
     const enrichedConversations = await Promise.all(
