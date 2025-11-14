@@ -9,6 +9,12 @@ async function main() {
   // Créer des salons par défaut
   const rooms = [
     {
+      name: 'accueil',
+      description: '👋 Bienvenue sur LiveChat ! Salon principal',
+      isPrivate: false,
+      maxUsers: 500
+    },
+    {
       name: 'général',
       description: 'Salon de discussion générale',
       isPrivate: false,

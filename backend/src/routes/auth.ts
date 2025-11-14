@@ -52,6 +52,17 @@ router.post('/anonymous', async (req, res) => {
       }
     });
 
+    // Rejoindre automatiquement le salon "accueil"
+    const welcomeRoom = await prisma.room.findUnique({ where: { name: 'accueil' } });
+    if (welcomeRoom) {
+      await prisma.roomMember.create({
+        data: {
+          userId: user.id,
+          roomId: welcomeRoom.id
+        }
+      }).catch(() => {}); // Ignorer si déjà membre
+    }
+
     // Générer un token JWT
     const token = jwt.sign(
       { userId: user.id, username: user.username, role: user.role },
@@ -119,6 +130,17 @@ router.post('/register', async (req, res) => {
       }
     });
 
+    // Rejoindre automatiquement le salon "accueil"
+    const welcomeRoom = await prisma.room.findUnique({ where: { name: 'accueil' } });
+    if (welcomeRoom) {
+      await prisma.roomMember.create({
+        data: {
+          userId: user.id,
+          roomId: welcomeRoom.id
+        }
+      }).catch(() => {}); // Ignorer si déjà membre
+    }
+
     // Générer un token JWT
     const token = jwt.sign(
       { userId: user.id, username: user.username, role: user.role },
@@ -174,6 +196,17 @@ router.post('/login', async (req, res) => {
       where: { id: user.id },
       data: { status: 'ONLINE', lastSeenAt: new Date() }
     });
+
+    // Rejoindre automatiquement le salon "accueil" si pas déjà membre
+    const welcomeRoom = await prisma.room.findUnique({ where: { name: 'accueil' } });
+    if (welcomeRoom) {
+      await prisma.roomMember.create({
+        data: {
+          userId: user.id,
+          roomId: welcomeRoom.id
+        }
+      }).catch(() => {}); // Ignorer si déjà membre
+    }
 
     // Générer un token JWT
     const token = jwt.sign(
