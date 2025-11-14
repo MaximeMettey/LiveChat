@@ -1,0 +1,188 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ONLINE
+  AWAY
+  OFFLINE
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  INAPPROPRIATE_CONTENT
+  IMPERSONATION
+  OTHER
+}
+
+model User {
+  id            String      @id @default(uuid())
+  username      String      @unique
+  email         String?     @unique
+  password      String?
+  age           Int
+  department    String      // Code département (ex: "75", "69")
+  avatar        String?
+  bio           String?
+  role          UserRole    @default(USER)
+  status        UserStatus  @default(OFFLINE)
+  isAnonymous   Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  lastSeenAt    DateTime    @default(now())
+
+  // Relations
+  sentMessages        Message[]           @relation("SentMessages")
+  rooms               RoomMember[]
+  friends             Friendship[]        @relation("UserFriends")
+  friendOf            Friendship[]        @relation("FriendOfUser")
+  blocks              Block[]             @relation("BlockedBy")
+  blockedBy           Block[]             @relation("BlockedUser")
+  reports             Report[]            @relation("ReportedBy")
+  reportedUser        Report[]            @relation("ReportedUser")
+  moderationActions   ModerationAction[]
+
+  @@index([username])
+  @@index([email])
+  @@index([status])
+}
+
+model Room {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  isPrivate   Boolean      @default(false)
+  maxUsers    Int          @default(100)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  members     RoomMember[]
+  messages    Message[]
+
+  @@index([name])
+  @@index([isPrivate])
+}
+
+model RoomMember {
+  id        String   @id @default(uuid())
+  userId    String
+  roomId    String
+  joinedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@index([userId])
+  @@index([roomId])
+}
+
+model Message {
+  id          String    @id @default(uuid())
+  content     String
+  senderId    String
+  roomId      String?
+  receiverId  String?   // Pour les messages privés
+  isPrivate   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  sender      User      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  room        Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([roomId])
+  @@index([receiverId])
+  @@index([createdAt])
+  @@index([isPrivate])
+}
+
+model Friendship {
+  id          String   @id @default(uuid())
+  userId      String
+  friendId    String
+  accepted    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend      User     @relation("FriendOfUser", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@index([userId])
+  @@index([friendId])
+  @@index([accepted])
+}
+
+model Block {
+  id          String   @id @default(uuid())
+  blockerId   String
+  blockedId   String
+  createdAt   DateTime @default(now())
+
+  blocker     User     @relation("BlockedBy", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked     User     @relation("BlockedUser", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+model Report {
+  id          String       @id @default(uuid())
+  reporterId  String
+  reportedId  String
+  reason      ReportReason
+  description String?
+  status      ReportStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  reporter    User         @relation("ReportedBy", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported    User         @relation("ReportedUser", fields: [reportedId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([reportedId])
+  @@index([status])
+}
+
+model ModerationAction {
+  id          String   @id @default(uuid())
+  moderatorId String
+  targetId    String
+  action      String   // "warn", "mute", "ban", "delete_message"
+  reason      String
+  duration    Int?     // Durée en minutes (null = permanent)
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+
+  moderator   User     @relation(fields: [moderatorId], references: [id], onDelete: Cascade)
+
+  @@index([moderatorId])
+  @@index([targetId])
+  @@index([expiresAt])
+}
