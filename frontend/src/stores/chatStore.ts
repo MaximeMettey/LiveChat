@@ -113,8 +113,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
   loadConversations: async () => {
     try {
       const response = await messageAPI.getConversations();
-      set({ conversations: response.data });
+      const rawConversations = response.data as any[];
+
+      // Transformer les données pour correspondre à l'interface Conversation
+      const conversations: Conversation[] = rawConversations.map((conv) => ({
+        userId: conv.otherUser?.id || conv.otherUserId,
+        username: conv.otherUser?.username || 'Utilisateur inconnu',
+        avatar: conv.otherUser?.avatar,
+        lastMessage: {
+          id: conv.id,
+          content: conv.content,
+          senderId: conv.senderId,
+          receiverId: conv.receiverId,
+          createdAt: conv.createdAt,
+          isPrivate: true,
+          roomId: null
+        } as Message,
+        unreadCount: 0 // TODO: implement unread count
+      }));
+
+      set({ conversations });
     } catch (error: any) {
+      console.error('Erreur chargement conversations:', error);
       toast.error('Erreur lors du chargement des conversations');
     }
   },
