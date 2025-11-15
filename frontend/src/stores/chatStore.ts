@@ -67,13 +67,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return;
       }
 
-      // Sinon, on rejoint le salon
-      await roomAPI.joinRoom(roomId);
+      // Essayer de rejoindre le salon (peut échouer si déjà membre)
+      try {
+        await roomAPI.joinRoom(roomId);
+      } catch (error: any) {
+        // Si l'erreur est "déjà membre", on ignore et on continue
+        const errorMessage = error.response?.data?.error || '';
+        if (!errorMessage.includes('déjà') && !errorMessage.includes('already')) {
+          throw error; // Re-throw si c'est une autre erreur
+        }
+        // Sinon on ignore l'erreur et on continue pour charger les messages
+      }
+
+      // Rejoindre via Socket.io et charger les messages
       socketService.joinRoom(roomId);
       await get().loadRoomMessages(roomId);
 
       if (room) {
-        set({ currentRoom: room });
+        set({ currentRoom: room, currentPrivateChat: null });
       }
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Erreur en rejoignant le salon');
